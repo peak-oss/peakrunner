@@ -2,8 +2,8 @@ import falcon
 import docker
 
 
-class PeakStart():
-    """Handles requests to start peaktest containers
+class PeakCreate():
+    """Handles requests to create peaktest containers
 
     This class handles POST requests from peakorc to start containers. It
     utilises the docker-py library to start peaktest containers.
@@ -11,11 +11,13 @@ class PeakStart():
     The docker environment is assumed to be setup on the host running this
     service.
     """
+    def __init__(self):
+        self.client = docker.from_env(version="auto",timeout=180)
 
-    def start_test(self, url, num_requests, status_uri, uuid):
-        """Starts peaktest Docker containers
+    def create_container(self, url, num_requests, status_uri, uuid):
+        """Creates peaktest Docker containers
 
-        Uses the docker-py library to start peaktest container images
+        Uses the docker-py library to create and start peaktest container images
         with parameters specified in an API request.
 
         Args:
@@ -25,12 +27,12 @@ class PeakStart():
             uuid (string): the `peakorc` UUID reference for this specific test
         """
 
-        client = docker.from_env(version="auto")
         env = {'REQUESTS': num_requests, 'URL': url,
                'STATUS_URI': status_uri,
                'UUID': uuid}
-        # RH docker 1.12 does not support auto-remove
-        client.containers.run("peaktest:latest", detach=True, environment=env)
+
+        return self.client.containers.run("peaktest:latest", detach=True,
+                                    environment=env, remove=True)
 
     def on_post(self, req, resp):
         """Handles POST requests
@@ -45,10 +47,9 @@ class PeakStart():
         status_uri = req.get_header('status-uri')
         test_uuid = req.get_header('uuid')
 
-        self.start_test(url, requests, status_uri, test_uuid)
-
+        self.create_container(url, requests, status_uri, test_uuid)
 
 api = falcon.API()
 
-peak_start = PeakStart()
-api.add_route('/start', peak_start)
+peak_create = PeakCreate()
+api.add_route('/create', peak_create)
